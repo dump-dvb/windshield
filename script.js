@@ -124,8 +124,8 @@ window.onload = function () {
     body: JSON.stringify(params),
     headers: new Headers({ 'content-type': 'application/json' })
   };
-  fetch('https://cors-anywhere.herokuapp.com/https://api.dvb.solutions/state/all', options)
-    // fetch('https://api.dvb.solutions/state/all', options)
+  // fetch('https://cors-anywhere.herokuapp.com/https://api.dvb.solutions/state/all', options)
+  fetch('https://api.dvb.solutions/state/all', options)
     .then(response => response.json())
     .then(response => {
       // Do something with response.
@@ -144,21 +144,4 @@ window.onload = function () {
         // processVehicle(response[i]);
       }
     });
-
-
-  let a = {
-    delay: -1,
-    destination_number: 3,
-    direction: 15,
-    lat: 0,
-    line: 68,
-    lon: 0,
-    position_id: 231,
-    run_number: 15,
-    station_name: "",
-    status: 0,
-    time_stamp: 1651530824,
-    train_length: 0
-  }
-  processVehicle(a);
 }
