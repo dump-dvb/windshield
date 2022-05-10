@@ -1,3 +1,95 @@
+var LINES_CACHE = {}
+
+function fetchLinePlan(line) {
+  if (LINES_CACHE.hasOwnProperty(line)) {
+    return new Promise(resolve => resolve(LINES_CACHE[line]));
+  }
+
+  return fetch(`/res/lines/${line}.json`)
+    .then(res => {
+      if (res.status != 200) {
+        return [];
+      } else {
+        return res.json();
+      }
+    })
+    .catch(e => {
+      return [];
+    })
+    .then(res => {
+      LINES_CACHE[line] = res;
+      return res;
+    });
+}
+
+function distanceBetweenJunctions(line, start, stop) {
+  let i;
+  for(i = 0; i < line.segments.length; i++) {
+    if (line.segments[i].junction === start) {
+      break;
+    }
+  }
+  if (i == line.segments.length) {
+    console.error("wat");
+    return;
+  }
+
+  let distance = 0;
+  let prev = line.segments[i].pos;
+  for(; i < line.segments.length; i++) {
+    if (line.segments[i].junction === stop) {
+      return distance;
+    } else if (line.segments[i].constructor === Array) {
+      distance += WGS84Util.distanceBetween(
+        { coordinates: prev },
+        { coordinates: line.segments[i] },
+      );
+      prev = line.segments[i];
+    }
+  }
+  console.error("wat");
+}
+
+function distanceFromJunction(line, junction, distance) {
+  if (!line.segments) {
+    console.warn("bogus line", line);
+    return;
+  }
+
+  let i;
+  for(i = 0; i < line.segments.length; i++) {
+    if (line.segments[i].junction === junction) {
+      break;
+    }
+  }
+  if (i == line.segments.length) {
+    console.error("wat");
+    return;
+  }
+
+  let distance1 = 0;
+  let prev = line.segments[i].pos;
+  for(; i < line.segments.length; i++) {
+    if (line.segments[i].constructor === Array) {
+      const segmentLength = WGS84Util.distanceBetween(
+        { coordinates: prev },
+        { coordinates: line.segments[i] },
+      );
+      if (distance1 + segmentLength > distance) {
+        // how far in this segment
+        let a = (distance - distance1) / segmentLength;
+        return [
+          (1 - a) * prev[0] + a * line.segments[i][0],
+          (1 - a) * prev[1] + a * line.segments[i][1],
+        ];
+      }
+      distance1 += segmentLength;
+      prev = line.segments[i];
+    }
+  }
+  // line over
+}
+
 window.onload = function () {
 
 
@@ -50,7 +142,23 @@ window.onload = function () {
     socket.addEventListener('error', () => { setupSocket() })
     socket.addEventListener('message', function (event) {
       const data = JSON.parse(event.data)
-      processVehicle(data);
+      fetchLinePlan(data.line)
+        .then(plan => {
+          let pos;
+          plan.forEach(line => {
+            line.segments.forEach(segment => {
+              if (segment.junction === data.position_id) {
+                pos = segment.pos;
+              }
+            });
+          });
+          if (pos && data.lon == 0 && data.lat == 0) {
+            console.log("found interpolated pos", pos);
+            data.lon = pos[0];
+            data.lat = pos[1];
+          }
+          processVehicle(data);
+        })
     })
   }
 
@@ -76,7 +184,6 @@ window.onload = function () {
 
 
   function processVehicle(data) {
-
     let id = `${data.line}-${data.run_number}`
 
     if (data.lat == 0 || data.lon == 0) {
@@ -84,14 +191,72 @@ window.onload = function () {
     }
     if (id in vehicles) {
       console.log("Vehicle already here ", id)
-      vehicles[id].setLatLng([data.lat, data.lon]);
-      vehicles[id].getPopup().setContent(JSON.stringify(data, null, 2));
+      const v = vehicles[id];
+
+      if (v.history.length > 0 && v.history[v.history.length - 1].junction == data.position_id) {
+        // avoid entries with duplicate junctions in history
+        v.history.pop();
+      }
+      v.history.push({
+        junction: data.position_id,
+        time: Date.now(),
+      });
+      // cap history size
+      while(v.history.length > 3) {
+        v.history.pop();
+      }
+      // recalc speed
+      if (v.history.length > 2) {
+        fetchLinePlan(data.line)
+          .then(plan => {
+            let pos;
+            let expectedStops = v.history.map(({ junction }) => junction);
+            // select only the lines for which all stops this vehicle
+            // has gone through are contained in the right order
+            v.lines = plan.filter(line => {
+              let stops = [].concat(expectedStops);
+              line.segments.forEach(segment => {
+                if (segment.junction === stops[0]) {
+                  stops.shift();
+                }
+              });
+              return stops.length == 0;
+            });
+            console.log("lines", v.lines.length);
+            if (v.lines.length != 0) {
+              console.log("dist", distanceBetweenJunctions(
+                v.lines[0],
+                v.history[0].junction,
+                v.history[v.history.length - 1].junction
+              ), "delta", v.history[v.history.length - 1].time - v.history[0].time);
+            }
+            v.speed = (v.lines.length == 0)
+              ? 0
+              : (distanceBetweenJunctions(
+                v.lines[0],
+                v.history[0].junction,
+                v.history[v.history.length - 1].junction
+              ) / Math.max(v.history[v.history.length - 1].time - v.history[0].time, 1));
+            console.log("SPEED", v.speed);
+          })
+      }
+
+      v.marker.setLatLng([data.lat, data.lon]);
+      v.marker.getPopup().setContent(JSON.stringify(data, null, 2));
       return
     }
-    let v = drawVehicle(data);
+    let v = {
+      marker: drawVehicle(data),
+      history: [{
+        junction: data.position_id,
+        time: Date.now(),
+      }],
+      lines: [],
+      speed: 0,
+    };
     vehicles[id] = v;
 
-    v.addEventListener('click', function (event) {
+    v.marker.addEventListener('click', function (event) {
       console.log("Clicked on ", data);
       document.getElementById("dynstyle").innerHTML = ".leaflet-tile{filter:brightness(0.5)}";
       console.log(document.getElementsByClassName("leaflet-tile-container"))
@@ -125,23 +290,47 @@ window.onload = function () {
     headers: new Headers({ 'content-type': 'application/json' })
   };
   // fetch('https://cors-anywhere.herokuapp.com/https://api.dvb.solutions/state/all', options)
-  fetch('https://api.dvb.solutions/state/all', options)
-    .then(response => response.json())
-    .then(response => {
-      // Do something with response.
-      let lines = response.lines;
-      for (l in lines) {
-        for (id in lines[l].trams) {
-          let v = lines[l].trams[id];
-          let stop = stops[v.position_id];
-          if (stop) {
-            v.line = l;
-            v.lat = stop.lat;
-            v.lon = stop.lon;
-            processVehicle(v);
-          }
-        }
-        // processVehicle(response[i]);
+  // fetch('https://api.dvb.solutions/state/all', options)
+  //   .then(response => response.json())
+  //   .then(response => {
+  //     // Do something with response.
+  //     let lines = response.lines;
+  //     for (l in lines) {
+  //       for (id in lines[l].trams) {
+  //         let v = lines[l].trams[id];
+  //         let stop = stops[v.position_id];
+  //         if (stop) {
+  //           v.line = l;
+  //           v.lat = stop.lat;
+  //           v.lon = stop.lon;
+  //           processVehicle(v);
+  //         }
+  //       }
+  //       // processVehicle(response[i]);
+  //     }
+  //   });
+
+  function animate() {
+    for(var id in vehicles) {
+      const v = vehicles[id];
+      if (v.history.length < 2 || v.lines.length < 1) {
+        // TODO: set opacity for fading out?
+        continue;
       }
-    });
+
+      // interpolate
+      const pos = distanceFromJunction(
+        v.lines[0],
+        v.history[v.history.length - 1].junction,
+        v.speed * (Date.now() - v.history[v.history.length - 1].time)
+      );
+      if (pos) {
+        v.marker.setLatLng([pos[1], pos[0]]);
+      }
+    }
+
+    // loop
+    window.requestAnimationFrame(animate);
+  }
+  window.requestAnimationFrame(animate);
 }
