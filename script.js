@@ -89,13 +89,13 @@ window.onload = function () {
       return
     }
     let v = drawVehicle(data);
+    vehicles[id] = v;
 
     v.addEventListener('click', function (event) {
       console.log("Clicked on ", data);
       document.getElementById("dynstyle").innerHTML = ".leaflet-tile{filter:brightness(0.5)}";
       console.log(document.getElementsByClassName("leaflet-tile-container"))
       highlight(data.line)
-      vehicles[id] = v;
     });
 
     if (id in vehiclesByLine) {
