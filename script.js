@@ -142,6 +142,10 @@ window.onload = function () {
     socket.addEventListener('error', () => { setupSocket() })
     socket.addEventListener('message', function (event) {
       const data = JSON.parse(event.data)
+      if (data.region_code !== 0) {
+        // Dresden only
+        return;
+      }
       fetchLinePlan(data.line)
         .then(plan => {
           let pos;
