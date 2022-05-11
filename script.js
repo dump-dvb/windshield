@@ -145,7 +145,6 @@ window.onload = function () {
   function setupSocket() {
     socket = new WebSocket(wsAdd);
     socket.addEventListener('close', () => { setupSocket() })
-    socket.addEventListener('error', () => { setupSocket() })
     socket.addEventListener('message', function (event) {
       const data = JSON.parse(event.data)
       if (data.region_code !== 0) {
