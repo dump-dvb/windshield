@@ -212,7 +212,7 @@ window.onload = function () {
         time: Date.now(),
       });
       // cap history size
-      while(v.history.length > 3) {
+      while(v.history.length > 4) {
         v.history.pop();
       }
       // recalc speed
