@@ -1,6 +1,7 @@
 const FADE_DELAY = 150 * 1000;
 const FADE_DURATION = 60 * 1000;
 var LINES_CACHE = {}
+var trackLayers = [];
 
 function fetchLinePlan(line) {
   if (LINES_CACHE.hasOwnProperty(line)) {
@@ -92,12 +93,6 @@ function distanceFromJunction(line, junction, distance) {
   // line over
 }
 
-var trackLayers = [];
-function onPopupClose() {
-  trackLayers.forEach(layer => layer.remove());
-  trackLayers = [];
-}
-
 window.onload = function () {
 
 
@@ -140,6 +135,9 @@ window.onload = function () {
 
   map.on("click", () => {
     document.getElementById("dynstyle").innerHTML = "";
+
+    trackLayers.forEach(layer => layer.remove());
+    trackLayers = [];
   })
 
   const wsAdd = 'wss://socket.dvb.solutions';
@@ -191,8 +189,7 @@ window.onload = function () {
     });
     let m = L.marker([data.lat, data.lon], { icon: ico });
     m.addTo(map)
-      .bindPopup(JSON.stringify(data, null, 2))
-      .addEventListener('popupclose', onPopupClose);
+      .bindPopup(JSON.stringify(data, null, 2));
     return m;
   }
 
@@ -283,7 +280,11 @@ window.onload = function () {
           }
         });
         trackLayers.push(
-          L.polyline(latLngs, {color:'blue'}).addTo(map)
+          L.polyline(latLngs, {
+            color: '#FFFF3F',
+            opacity: 0.7,
+            weight: 8,
+          }).addTo(map)
         );
       });
     });
