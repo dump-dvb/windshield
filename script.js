@@ -276,6 +276,15 @@ window.onload = function () {
         line.segments.forEach(segment => {
           if (segment.constructor == Array) {
             latLngs.push([segment[1], segment[0]]);
+          } else if (segment.junction && segment.pos) {
+            trackLayers.push(
+              L.circle([segment.pos[1], segment.pos[0]], {
+                radius: 32,
+                weight: 0,
+                fill: true,
+                fillColor: '#FFFF3F',
+              }).addTo(map)
+            );
           }
         });
         trackLayers.push(
