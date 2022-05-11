@@ -92,6 +92,12 @@ function distanceFromJunction(line, junction, distance) {
   // line over
 }
 
+var trackLayers = [];
+function onPopupClose() {
+  trackLayers.forEach(layer => layer.remove());
+  trackLayers = [];
+}
+
 window.onload = function () {
 
 
@@ -184,7 +190,9 @@ window.onload = function () {
       className: `line line-${data.line}`
     });
     let m = L.marker([data.lat, data.lon], { icon: ico });
-    m.addTo(map).bindPopup(JSON.stringify(data, null, 2));
+    m.addTo(map)
+      .bindPopup(JSON.stringify(data, null, 2))
+      .addEventListener('popupclose', onPopupClose);
     return m;
   }
 
@@ -265,8 +273,19 @@ window.onload = function () {
     v.marker.addEventListener('click', function (event) {
       console.log("Clicked on ", data);
       document.getElementById("dynstyle").innerHTML = ".leaflet-tile{filter:brightness(0.5)}";
-      console.log(document.getElementsByClassName("leaflet-tile-container"))
       highlight(data.line)
+
+      v.lines.forEach(line => {
+        let latLngs = [];
+        line.segments.forEach(segment => {
+          if (segment.constructor == Array) {
+            latLngs.push([segment[1], segment[0]]);
+          }
+        });
+        trackLayers.push(
+          L.polyline(latLngs, {color:'blue'}).addTo(map)
+        );
+      });
     });
 
     if (id in vehiclesByLine) {
