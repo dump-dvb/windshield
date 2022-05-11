@@ -271,6 +271,34 @@ window.onload = function () {
       document.getElementById("dynstyle").innerHTML = ".leaflet-tile{filter:brightness(0.5)}";
       highlight(data.line)
 
+      // show possible lines
+      fetchLinePlan(data.line).then(plan => plan.forEach(line => {
+        let latLngs = [];
+        line.segments.forEach(segment => {
+          if (segment.constructor == Array) {
+            latLngs.push([segment[1], segment[0]]);
+          } else if (segment.junction && segment.pos) {
+            trackLayers.push(
+              L.circle([segment.pos[1], segment.pos[0]], {
+                radius: 32,
+                weight: 0,
+                fill: true,
+                fillColor: '#3F3FFF',
+                fillOpacity: 0.5,
+              }).addTo(map)
+            );
+          }
+        });
+        trackLayers.push(
+          L.polyline(latLngs, {
+            color: '#3F3FFF',
+            opacity: 0.5,
+            weight: 8,
+          }).addTo(map)
+        );
+      }));
+
+      // show identified lines
       v.lines.forEach(line => {
         let latLngs = [];
         line.segments.forEach(segment => {
