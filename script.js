@@ -1,3 +1,5 @@
+const FADE_DELAY = 150 * 1000;
+const FADE_DURATION = 60 * 1000;
 var LINES_CACHE = {}
 
 function fetchLinePlan(line) {
@@ -317,19 +319,27 @@ window.onload = function () {
   function animate() {
     for(var id in vehicles) {
       const v = vehicles[id];
-      if (v.history.length < 2 || v.lines.length < 1) {
-        // TODO: set opacity for fading out?
+      // fade out
+      const opacity = Math.min(1.0,
+        1.0 - (Date.now() - v.history[v.history.length - 1].time - FADE_DELAY) / FADE_DURATION
+      );
+      if (opacity <= 0.0) {
+        v.marker.remove();
+        delete vehicles[id];
         continue;
       }
+      v.marker.setOpacity(opacity);
 
       // interpolate
-      const pos = distanceFromJunction(
-        v.lines[0],
-        v.history[v.history.length - 1].junction,
-        v.speed * (Date.now() - v.history[v.history.length - 1].time)
-      );
-      if (pos) {
-        v.marker.setLatLng([pos[1], pos[0]]);
+      if (v.history.length > 1 && v.lines.length > 0) {
+        const pos = distanceFromJunction(
+          v.lines[0],
+          v.history[v.history.length - 1].junction,
+          v.speed * (Date.now() - v.history[v.history.length - 1].time)
+        );
+        if (pos) {
+          v.marker.setLatLng([pos[1], pos[0]]);
+        }
       }
     }
 
