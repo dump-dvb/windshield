@@ -4,6 +4,11 @@ var LINES_CACHE = {}
 var trackLayers = [];
 var localClockOffset = 0;
 
+function removeTrackLayers() {
+  trackLayers.forEach(layer => layer.remove());
+  trackLayers = [];
+}
+
 function fetchLinePlan(line) {
   if (LINES_CACHE.hasOwnProperty(line)) {
     return new Promise(resolve => resolve(LINES_CACHE[line]));
@@ -119,8 +124,7 @@ window.onload = function () {
   map.on("click", () => {
     document.getElementById("dynstyle").innerHTML = "";
 
-    trackLayers.forEach(layer => layer.remove());
-    trackLayers = [];
+    removeTrackLayers();
   })
 
   const wsAdd = 'wss://socket.dvb.solutions';
@@ -249,6 +253,7 @@ window.onload = function () {
       document.getElementById("dynstyle").innerHTML = ".leaflet-tile{filter:brightness(0.5)}";
       highlight(data.line)
 
+      removeTrackLayers();
       // show possible lines
       fetchLinePlan(data.line).then(plan => plan.forEach(line => {
         let latLngs = [];
