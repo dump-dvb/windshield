@@ -241,7 +241,7 @@ window.onload = function () {
       marker: drawVehicle(data),
       history: [{
         junction: data.position_id,
-        time: data.tiem_stamp * 1000,
+        time: data.time_stamp * 1000,
       }],
       lines: [],
       speed: 0,
