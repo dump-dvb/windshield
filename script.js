@@ -2,6 +2,7 @@ const FADE_DELAY = 150 * 1000;
 const FADE_DURATION = 60 * 1000;
 var LINES_CACHE = {}
 var trackLayers = [];
+var localClockOffset = 0;
 
 function fetchLinePlan(line) {
   if (LINES_CACHE.hasOwnProperty(line)) {
@@ -94,24 +95,6 @@ function distanceFromJunction(line, junction, distance) {
 }
 
 window.onload = function () {
-
-
-  {
-    delay: -1
-    destination_number: 3
-    direction: 15
-    lat: 0
-    line: 68
-    lon: 0
-    position_id: 231
-    run_number: 15
-    station_name: ""
-    status: 0
-    time_stamp: 1651530824
-    train_length: 0
-  }
-
-
   var map = L.map('map').setView([51.05, 13.72], 14)
   L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
     attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
@@ -151,24 +134,27 @@ window.onload = function () {
         // Dresden only
         return;
       }
-      fetchLinePlan(data.line)
-        .then(plan => {
-          let pos;
-          plan.forEach(line => {
-            line.segments.forEach(segment => {
-              if (segment.junction === data.position_id) {
-                pos = segment.pos;
-              }
-            });
-          });
-          if (pos && data.lon == 0 && data.lat == 0) {
-            console.log("found interpolated pos", pos);
-            data.lon = pos[0];
-            data.lat = pos[1];
-          }
-          processVehicle(data);
-        })
+      processEvent(data);
     })
+  }
+
+  function processEvent(data) {
+    fetchLinePlan(data.line)
+      .then(plan => {
+        let pos;
+        plan.forEach(line => {
+          line.segments.forEach(segment => {
+            if (segment.junction === data.position_id) {
+              pos = segment.pos;
+            }
+          });
+        });
+        if (pos) {
+          data.lon = pos[0];
+          data.lat = pos[1];
+        }
+        processVehicle(data);
+      })
   }
 
 
@@ -196,7 +182,7 @@ window.onload = function () {
   function processVehicle(data) {
     let id = `${data.line}-${data.run_number}`
 
-    if (data.lat == 0 || data.lon == 0) {
+    if (!data.lat || !data.lon) {
       return;
     }
     if (id in vehicles) {
@@ -209,7 +195,7 @@ window.onload = function () {
       }
       v.history.push({
         junction: data.position_id,
-        time: Date.now(),
+        time: data.time_stamp * 1000,
       });
       // cap history size
       while(v.history.length > 4) {
@@ -232,14 +218,6 @@ window.onload = function () {
               });
               return stops.length == 0;
             });
-            console.log("lines", v.lines.length);
-            if (v.lines.length != 0) {
-              console.log("dist", distanceBetweenJunctions(
-                v.lines[0],
-                v.history[0].junction,
-                v.history[v.history.length - 1].junction
-              ), "delta", v.history[v.history.length - 1].time - v.history[0].time);
-            }
             v.speed = (v.lines.length == 0)
               ? 0
               : (distanceBetweenJunctions(
@@ -259,7 +237,7 @@ window.onload = function () {
       marker: drawVehicle(data),
       history: [{
         junction: data.position_id,
-        time: Date.now(),
+        time: data.tiem_stamp * 1000,
       }],
       lines: [],
       speed: 0,
@@ -284,7 +262,7 @@ window.onload = function () {
                 weight: 0,
                 fill: true,
                 fillColor: '#3F3FFF',
-                fillOpacity: 0.5,
+                fillOpacity: 0.3,
               }).addTo(map)
             );
           }
@@ -292,7 +270,7 @@ window.onload = function () {
         trackLayers.push(
           L.polyline(latLngs, {
             color: '#3F3FFF',
-            opacity: 0.5,
+            opacity: 0.3,
             weight: 8,
           }).addTo(map)
         );
@@ -343,41 +321,26 @@ window.onload = function () {
 
   setupSocket();
 
-  const params = {
-    region: "dresden",
-  };
-  const options = {
-    method: 'POST',
-    body: JSON.stringify(params),
-    headers: new Headers({ 'content-type': 'application/json' })
-  };
   // fetch('https://cors-anywhere.herokuapp.com/https://api.dvb.solutions/state/all', options)
-  // fetch('https://api.dvb.solutions/state/all', options)
-  //   .then(response => response.json())
-  //   .then(response => {
-  //     // Do something with response.
-  //     let lines = response.lines;
-  //     for (l in lines) {
-  //       for (id in lines[l].trams) {
-  //         let v = lines[l].trams[id];
-  //         let stop = stops[v.position_id];
-  //         if (stop) {
-  //           v.line = l;
-  //           v.lat = stop.lat;
-  //           v.lon = stop.lon;
-  //           processVehicle(v);
-  //         }
-  //       }
-  //       // processVehicle(response[i]);
-  //     }
-  //   });
+  fetch('https://api.dvb.solutions/state/dresden/all')
+    .then(response => response.json())
+    .then(response => {
+      const { network, time_stamp } = response.Ok;
+      localClockOffset = Date.now() - time_stamp * 1000;
+      for (const line in network) {
+        for (const run in network[line]) {
+          console.log('state', network[line][run]);
+          processEvent(network[line][run]);
+        }
+      }
+    });
 
   function animate() {
     for(var id in vehicles) {
       const v = vehicles[id];
       // fade out
       const opacity = Math.min(1.0,
-        1.0 - (Date.now() - v.history[v.history.length - 1].time - FADE_DELAY) / FADE_DURATION
+        1.0 - (Date.now() - localClockOffset - v.history[v.history.length - 1].time - FADE_DELAY) / FADE_DURATION
       );
       if (opacity <= 0.0) {
         v.marker.remove();
