@@ -330,7 +330,7 @@ window.onload = function () {
   fetch('https://api.dvb.solutions/vehicles/dresden/all')
     .then(response => response.json())
     .then(response => {
-      const { network, time_stamp } = response.Ok;
+      const { network, time_stamp } = response;
       localClockOffset = Date.now() - time_stamp * 1000;
       for (const line in network) {
         for (const run in network[line]) {
