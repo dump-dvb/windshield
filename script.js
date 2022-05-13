@@ -327,7 +327,7 @@ window.onload = function () {
   setupSocket();
 
   // fetch('https://cors-anywhere.herokuapp.com/https://api.dvb.solutions/state/all', options)
-  fetch('https://api.dvb.solutions/state/dresden/all')
+  fetch('https://api.dvb.solutions/vehicles/dresden/all')
     .then(response => response.json())
     .then(response => {
       const { network, time_stamp } = response.Ok;
