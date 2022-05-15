@@ -8,7 +8,7 @@ stdenv.mkDerivation {
 
   patchPhase = ''
     substituteInPlace script.js \
-         --replace "socket.dvb.solutions"  "${domain}"
+         --replace "dvb.solutions"  "${domain}"
   '';
 
   installPhase = ''
