@@ -13,14 +13,21 @@
     (system:
     let
         pkgs = nixpkgs.legacyPackages.${system};
-        package = pkgs.callPackage ./derivation.nix { };
+        package-production = pkgs.callPackage ./derivation.nix { 
+          domain = "socket.dvb.solutions";
+        };
+        package-staging = pkgs.callPackage ./derivation.nix { 
+          domain = "socket.staging.dvb.solutions";
+        };
       in
         rec {
           checks = packages;
-          packages.windshield = package;
-          defaultPackage = package;
+          packages.windshield = package-production;
+          packages.windshield-staging = package-staging;
+          defaultPackage = package-production;
           overlay = (final: prev: {
-            windshield = package;
+            windshield = package-production;
+            windshield-staging = package-staging;
           });
         }
       );

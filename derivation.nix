@@ -1,4 +1,4 @@
-{ stdenv, lib }:
+{ stdenv, lib, domain }:
 
 stdenv.mkDerivation {
   pname = "windshield";
@@ -6,8 +6,12 @@ stdenv.mkDerivation {
 
   src = ./.;
 
+  patchPhase = ''
+    substituteInPlace script.js \
+         --replace "socket.dvb.solutions"  "${domain}"
+  '';
+
   installPhase = ''
-    
     mkdir -p $out/bin
     cp -r ./* $out/bin
   '';
