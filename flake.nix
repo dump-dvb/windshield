@@ -14,10 +14,10 @@
     let
         pkgs = nixpkgs.legacyPackages.${system};
         package-production = pkgs.callPackage ./derivation.nix { 
-          domain = "socket.dvb.solutions";
+          domain = "dvb.solutions";
         };
         package-staging = pkgs.callPackage ./derivation.nix { 
-          domain = "socket.staging.dvb.solutions";
+          domain = "staging.dvb.solutions";
         };
       in
         rec {
