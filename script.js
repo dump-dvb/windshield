@@ -136,11 +136,7 @@ window.onload = function () {
     })
     socket.addEventListener('close', () => { setupSocket() })
     socket.addEventListener('message', function (event) {
-      const data = JSON.parse(event.data)
-      if (data.region_code !== 0) {
-        // Dresden only
-        return;
-      }
+      const data = JSON.parse(event.data);
       processEvent(data);
     })
   }
