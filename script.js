@@ -131,6 +131,9 @@ window.onload = function () {
   let socket = null;
   function setupSocket() {
     socket = new WebSocket(wsAdd);
+    socket.addEventListener('open', () => {
+      socket.send(JSON.stringify({ regions: [0] }));
+    })
     socket.addEventListener('close', () => { setupSocket() })
     socket.addEventListener('message', function (event) {
       const data = JSON.parse(event.data)
